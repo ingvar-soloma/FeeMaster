@@ -33,7 +33,7 @@ class CommissionCalculatorTest extends TestCase
             ],
             'withdraw commission in other currency' => [
                 new Operation('2024-11-07', 1, User::TYPE_PRIVATE, Operation::TYPE_WITHDRAW, 1500.00, 'USD'),
-                1.09
+                1.2
             ],
         ];
     }

@@ -2,8 +2,6 @@
 
 namespace IngvarSoloma\FeeMaster\Utils;
 
-require_once(__DIR__ . '/../bootstrap.php');
-
 use GuzzleHttp\Client;
 use IngvarSoloma\FeeMaster\Exceptions\CurrencyConverterException;
 
