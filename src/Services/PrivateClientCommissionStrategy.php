@@ -4,6 +4,8 @@ namespace IngvarSoloma\FeeMaster\Services;
 
 use DateTime;
 use IngvarSoloma\FeeMaster\Models\Operation;
+use IngvarSoloma\FeeMaster\Repositories\WithdrawalsRepository;
+use IngvarSoloma\FeeMaster\Repositories\InMemoryWithdrawalsRepository;
 use IngvarSoloma\FeeMaster\Utils\CurrencyConverterInterface;
 use IngvarSoloma\FeeMaster\Utils\Money;
 
@@ -13,9 +15,10 @@ class PrivateClientCommissionStrategy extends CommissionStrategyCalculator
     private const FREE_WITHDRAW_COUNT = 3;
     private const COMMISSION_RATE = 0.003;
 
-    private array $weeklyWithdrawals = [];
-
-    public function __construct(private readonly CurrencyConverterInterface $converter) {}
+    public function __construct(
+        private readonly CurrencyConverterInterface $converter,
+        private readonly WithdrawalsRepository $withdrawalsRepository = new InMemoryWithdrawalsRepository()
+    ) {}
 
     /**
      * @throws \Exception
@@ -24,7 +27,7 @@ class PrivateClientCommissionStrategy extends CommissionStrategyCalculator
     {
         $operationMoney = new Money($operation->amount, $operation->currency);
         $operationInBaseCurrency = $operationMoney->convertToBaseCurrency($this->converter);
-        $withdrawals = $this->getWithdrawals($operation);
+        $withdrawals = $this->withdrawalsRepository->getWithdrawals($operation->userId, $operation->date);
 
         if ($withdrawals->getCount() < self::FREE_WITHDRAW_COUNT
             && $withdrawals->getTotalAmount() < self::FREE_WITHDRAW_LIMIT) {
@@ -38,29 +41,8 @@ class PrivateClientCommissionStrategy extends CommissionStrategyCalculator
             $commissionAmount = $operationMoney->getAmount();
         }
 
+        $this->withdrawalsRepository->saveWithdrawals($operation->userId, $operation->date, $withdrawals);
+
         return self::roundUpCommission($commissionAmount * self::COMMISSION_RATE, 2);
-    }
-
-    /**
-     * @throws \Exception
-     */
-    private function getWithdrawals(Operation $operation): Withdrawals
-    {
-        $weekNumber = $this->getWeekNumber($operation->date);
-
-        if (!isset($this->weeklyWithdrawals[$operation->userId][$weekNumber])) {
-            $this->weeklyWithdrawals[$operation->userId][$weekNumber] = new Withdrawals();
-        }
-
-        return $this->weeklyWithdrawals[$operation->userId][$weekNumber];
-    }
-
-    /**
-     * @throws \Exception
-     */
-    private function getWeekNumber(string $date): int
-    {
-        $dateTime = new DateTime($date);
-        return (int)$dateTime->format('oW');
     }
 }
